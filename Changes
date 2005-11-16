@@ -1,0 +1,6 @@
+Revision history for Perl extension WWW-Selenium-Utils.
+
+0.01  Fri Nov  4 10:05:50 2005
+	- original version; created by h2xs 1.21 with options
+		-AXP -b 5.6.0 WWW-Selenium-Utils
+

@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use WWW::Selenium::Utils qw(generate_suite);
+use Getopt::Long;
+
+my $seldir;
+my $quiet = 0;
+GetOptions( 'selenium=s' => \$seldir,
+            'quiet'      => \$quiet,
+          ) or usage();
+
+generate_suite( selenium_dir => $seldir,
+                verbose => !$quiet,
+              );
+
+
+sub usage {
+    die <<EOT;
+USAGE: $0 [--quiet] --selenium=/path/to/selenium
+
+This script will convert any .wiki files in selenium/tests/
+to regular .html format selenium test files.  It will then 
+put all selenium/tests/*.html files into 
+selenium/tests/TestSuite.html
+
+EOT
+}
