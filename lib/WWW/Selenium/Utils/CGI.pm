@@ -26,13 +26,15 @@ sub run {
 
 sub cat {
     my $q = shift or croak("CGI query object is mandatory!");
+    my %opts = @_;
+    my $basedir = $opts{basedir} || $Config{prefix};
 
     my $file = $q->param('file');
     my $raw  = $q->param('raw');
 
     return error("file is a mandatory parameter!") unless $file;
 
-    $file = "$Config{prefix}/$file" unless $file =~ m#^/#;
+    $file = "$basedir/$file" unless $file =~ m#^/#;
     return error("Sorry, $file doesn't exist!") unless -e $file;
 
     my $contents;
@@ -104,6 +106,17 @@ commands in your selenium test cases, like this:
 C<cat()> will output the contents of a file.
 
 Arguments:
+
+=over 4
+
+=item basedir
+
+The base directory when a relative path is used.  Defaults to
+perl's install prefix.
+
+=back
+
+HTTP GET Parameters:
 
 =over 4
 

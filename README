@@ -6,9 +6,9 @@ testing websites using Selenium.
 
   http://selenium.thoughtworks.com
 
-The scripts/selenium-regen script can be used to automatically 
-convert test scripts written in a simple wiki-like table markup 
-into the html tables that Selenium expects.
+The selenium-regen script can be used to automatically convert test scripts
+written in a simple wiki-like table markup into the html tables that Selenium
+expects.
 
 Sample .wiki file:
 
@@ -21,9 +21,6 @@ Sample .wiki file:
   # so are blank lines
   | clickAndWait | id=main_btn |
 
-You may wish to use scripts/selenium-regen (eg: put it in your ~/bin),
-and/or use something similar that finds Selenium in your environment.
-
 This package contains two modules:
 
   WWW::Selenium::Utils
@@ -34,6 +31,7 @@ This package contains two modules:
     cat() - dump the contents of a file
 
     You will need to wrap these functions in CGI or mod_perl handlers.
+    Example run.cgi and cat.cgi scripts can be found in the scripts directory.
     
 
 INSTALLATION

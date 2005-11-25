@@ -4,7 +4,9 @@ lib/WWW/Selenium/Utils/CGI.pm
 Makefile.PL
 MANIFEST
 README
-script/selenium-regen
+bin/selenium-regen
+script/run.cgi
+script/cat.cgi
 t/0-use.t
 t/1-regen.t
 t/2-cgi.t
