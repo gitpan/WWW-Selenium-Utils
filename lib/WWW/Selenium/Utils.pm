@@ -10,7 +10,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(generate_suite);
 
-our $VERSION = '0.01';
+our $VERSION = '0.03';
 
 sub html_header;
 sub html_footer;
