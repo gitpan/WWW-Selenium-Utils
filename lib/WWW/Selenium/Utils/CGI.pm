@@ -6,10 +6,11 @@ use Carp;
 use File::Find;
 use CGI qw(:standard);
 use Config;
+use Data::Dumper;
 
 require Exporter;
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(run cat);
+our @EXPORT_OK = qw(run cat state);
 
 sub run {
     my $q = shift or croak("CGI query object is mandatory!");
@@ -52,6 +53,68 @@ sub cat {
     return header . start_html("Contents of $file") . $contents . end_html;
 }
 
+sub state {
+    my $q = shift or croak("CGI query object is mandatory!");
+
+    if ($q->param('clear_state')) {
+        _clear_state();
+        return header . start_html . h1("State cleared");
+    }
+
+    my $key = $q->param('key');
+    my $value = $q->param('value');
+    return error('key is a mandatory parameter!') unless $key;
+    unless ($value) {
+        my $val = _read_state($key);
+        return error("'$key' is not a valid key!") unless defined $val;
+        return header . start_html . h1("State for $key")
+               . "'$key' is '$val'";
+    }
+    eval {
+        _store_state( $key => $value );
+    };
+    if ($@) {
+        return header . start_html . h1("State for $key")
+               . "Error saving key $key: $@";
+    }
+    return header . start_html . h1("State for $key")
+           . "Stored '$value' in '$key'";
+}
+
+my $statefile = "/tmp/selenium-utils-state";
+
+sub _read_state {
+    my $key = shift;
+    my $content = '';
+    if (-e $statefile) {
+        local $/;
+        open(my $fh, $statefile) or die "Can't open $statefile: $!";
+        $content = <$fh>;
+        close $fh or die "Can't close $statefile: $!";
+    }
+
+    my $state;
+    eval $content;
+    $state ||= {};
+    return $key ? $state->{$key} : $state;
+}
+
+sub _store_state {
+    my ($key, $val) = @_;
+    my $state = _read_state;
+    $state->{$key} = $val;
+    my $tmpstate = "$statefile.$$";
+    my $textstate = Data::Dumper->Dump([$state], ["state"]);
+    open(my $fh, ">$tmpstate") or die "Can't open $tmpstate: $!";
+    print $fh $textstate;
+    close $fh or die "Can't write $tmpstate: $!";
+    rename $tmpstate, $statefile or 
+        die "Can't rename $tmpstate, $statefile: $!";
+}
+
+sub _clear_state {
+    unlink $statefile;
+}
 
 sub error {
     my $msg = shift;
@@ -80,6 +143,12 @@ to create their own cgi or mod_perl handlers that call these functions.
 
 =head1 SUBROUTINES
 
+These subs should be called by CGI or mod_perl wrappers.  I feel
+this will provide the most generic interface that can be customized
+to any application.  Sample CGI scripts are in scripts/ of this 
+distribution.  Indeed I use both CGI and mod_perl for various test 
+projects.
+
 =head2 run
 
 C<run()> will run an command passed in from as a CGI variable.
@@ -88,7 +157,7 @@ Note that this is NOT SAFE for general websites, as it allows
 ARBITRARY COMMANDS to be run.  For testing purposes however, it 
 is quite useful.
 
-Arguments:
+HTTP GET Parameters:
 
 =over 4
 
@@ -129,6 +198,26 @@ will be relative to $Config{prefix} (where your perl is installed to).
 
 If this is false (the default), then the contents of the file will be
 surrownded in a pre block, to make the output look nicer in the browser.
+
+=back
+
+=head2 state
+
+Keeps any kind of key/value state.  This can allow selenium to signal
+other processes or stare information.  State is stored in a flat file
+in /tmp.
+
+HTTP GET Parameters:
+
+=over 4
+
+=item key (Mandatory)
+
+A key to set or get.
+
+=item value
+
+If present, will be stored for the given key.
 
 =back
 

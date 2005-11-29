@@ -4,8 +4,7 @@ use File::Path;
 use lib "lib";
 use WWW::Selenium::Utils qw(generate_suite);
 
-my $seldir = "t/selenium";
-my $testdir = "$seldir/tests";
+my $testdir = "t/tests";
 !-d $testdir or rmtree $testdir or die "Can't rmtree $testdir: $!";
 mkpath $testdir or die "Can't mkpath $testdir: $!";
 open(my $fh, ">$testdir/foo.wiki") or die "Can't open $testdir/foo.wiki: $!";
@@ -38,11 +37,13 @@ EOT
 close $fh or die "Can't write $testdir/bar.html: $!";
 
 
-generate_suite( selenium_dir => $seldir );
+generate_suite( test_dir => $testdir );
 ok -e "$testdir/TestSuite.html", "TestSuite created";
 ok -e "$testdir/foo.html", "foo.wiki converted to html";
 my $suite = cat("$testdir/TestSuite.html");
+like $suite, qr#>bar</a>#, "link is from filename";
 like $suite, qr#foo\.html#, "suite contains link to foo.html";
+like $suite, qr#>some title</a>#, "link is from wiki title";
 like $suite, qr#bar\.html#, "suite contains link to bar.html";
 my $foo = cat("$testdir/foo.html");
 like $foo, qr#open#;

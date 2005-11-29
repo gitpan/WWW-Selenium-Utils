@@ -7,6 +7,7 @@ README
 bin/selenium-regen
 script/run.cgi
 script/cat.cgi
+script/state.cgi
 t/0-use.t
 t/1-regen.t
 t/2-cgi.t

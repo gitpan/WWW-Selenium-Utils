@@ -8,5 +8,5 @@ WriteMakefile(
     ABSTRACT            => 'Handy utilities for working with Selenium',
     AUTHOR              => 'Luke Closs <cpan@5thplane.com>',
     EXE_FILES           => [ qw(bin/selenium-regen) ],
-    clean               => { FILES => 't/foo.conf t/selenium' }, 
+    clean               => { FILES => 't/foo.conf t/tests' }, 
 );

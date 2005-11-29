@@ -10,7 +10,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(generate_suite);
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 sub html_header;
 sub html_footer;
@@ -18,12 +18,12 @@ sub html_footer;
 sub generate_suite {
     my %opts = @_;
 
-    my $seldir = $opts{selenium_dir} or croak("selenium_dir is mandatory!");
-    croak("$seldir is not a directory!") unless -d $seldir;
-    my $files = $opts{files} || test_files($seldir);
+    my $testdir = $opts{test_dir} or croak("test_dir is mandatory!");
+    croak("$testdir is not a directory!") unless -d $testdir;
+    my $files = $opts{files} || test_files($testdir);
     my $verbose = $opts{verbose};
 
-    my $suite = "$seldir/tests/TestSuite.html";
+    my $suite = "$testdir/TestSuite.html";
     my $date = localtime;
 
     open(my $fh, ">$suite.tmp") or die "Can't open $suite.tmp: $!";
@@ -34,15 +34,15 @@ sub generate_suite {
     for (sort {$a cmp $b} @$files) {
         next if /(?:\.tmp|TestSuite\.html)$/;
         # skip html files that we have or will generate
-        next if /(.+)\.html$/ and -e "$seldir/tests/$1.wiki";
+        next if /(.+)\.html$/ and -e "$testdir/$1.wiki";
 
         my $f = $_;
         print "Adding row for $f\n" if $verbose;
         if (/\.wiki$/) {
-            $f = wiki2html("$seldir/tests/$f");
+            $f = wiki2html("$testdir/$f");
         }
-        (my $base = $f) =~ s#^.+/tests/(.+)\.html$#$1#;
-        print $fh qq(\t<tr><td><a href="./$f">$base</a></td></tr>\n);
+        my $title = find_title("$testdir/$f");
+        print $fh qq(\t<tr><td><a href="./$f">$title</a></td></tr>\n);
     }
     #print the footer
     print $fh html_footer();
@@ -54,7 +54,7 @@ sub generate_suite {
 }
 
 sub test_files {
-    my $seldir = shift;
+    my $testdir = shift;
 
     my @tests;
     find(sub {
@@ -63,7 +63,7 @@ sub test_files {
             return unless m#(?:wiki|html)$#;
             $n =~ s#^.+/tests/##;
             push @tests, $n;
-        }, "$seldir/tests");
+        }, $testdir);
     return \@tests;
 }
 
@@ -100,6 +100,19 @@ sub wiki2html {
     print $out html_footer();
     close $out or die "Can't write $html: $!";
     return $1 if $html =~ m#.+/tests/(.+)$#;
+}
+
+sub find_title {
+    my $filename = shift;
+
+    local $/;
+    open(my $fh, $filename) or die "Can't open $filename: $!";
+    my $contents = <$fh>;
+    close $fh or die "Can't close $filename: $!";
+
+    return $1 if $contents =~ m#<title>\s*(.+)\s*</title>#;
+    return $1 if $filename =~ m#^.+/(.+)\.html$#;
+    return $filename;
 }
 
 sub html_header {
@@ -147,7 +160,7 @@ WWW::Selenium::Utils - helper functions for working with Selenium
   use WWW::Selenium::Utils qw(generate_suite);
 
   # convert .wiki files to .html and create TestSuite.html
-  generate_suite( selenium_dir => "/var/www/selenium",
+  generate_suite( test_dir => "/var/www/selenium/tests",
                   quiet => 0,
                 );
 

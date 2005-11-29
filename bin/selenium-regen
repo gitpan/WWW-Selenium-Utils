@@ -5,25 +5,29 @@ use warnings;
 use WWW::Selenium::Utils qw(generate_suite);
 use Getopt::Long;
 
-my $seldir;
+my $testdir;
 my $quiet = 0;
-GetOptions( 'selenium=s' => \$seldir,
+GetOptions( 
             'quiet'      => \$quiet,
           ) or usage();
+$testdir = shift;
+usage("No tests directory provided!") unless $testdir;
+usage("$testdir isn't a directory!") unless -d $testdir;
 
-generate_suite( selenium_dir => $seldir,
+generate_suite( test_dir => $testdir,
                 verbose => !$quiet,
               );
 
 
 sub usage {
+    my $msg = shift || '';
     die <<EOT;
-USAGE: $0 [--quiet] --selenium=/path/to/selenium
+$msg
+USAGE: $0 [--quiet] /path/to/selenium/tests
 
-This script will convert any .wiki files in selenium/tests/
-to regular .html format selenium test files.  It will then 
-put all selenium/tests/*.html files into 
-selenium/tests/TestSuite.html
+This script will convert any .wiki files in the tests/ directory
+to regular .html format selenium test files.  It will then put 
+all tests/*.html files into tests/TestSuite.html
 
 EOT
 }

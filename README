@@ -29,9 +29,10 @@ This package contains two modules:
   WWW::Selenium::Utils::CGI
     run() - runs a command, returns the output
     cat() - dump the contents of a file
+    state() - query and store simple key/value pairs to keep state
 
     You will need to wrap these functions in CGI or mod_perl handlers.
-    Example run.cgi and cat.cgi scripts can be found in the scripts directory.
+    Example scripts can be found in the scripts/ directory.
     
 
 INSTALLATION
@@ -46,6 +47,10 @@ To install this module type the following:
 DEPENDENCIES
 
 None.
+
+THANKS TO
+
+Mark Stosberg for early feedback.  Tom Milne for inspiration for state().
 
 COPYRIGHT AND LICENCE
 
