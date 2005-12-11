@@ -1,6 +1,7 @@
 Changes
 lib/WWW/Selenium/Utils.pm
 lib/WWW/Selenium/Utils/CGI.pm
+lib/WWW/Selenium/Utils/PostResults.pm
 Makefile.PL
 MANIFEST
 README
@@ -8,6 +9,7 @@ bin/selenium-regen
 script/run.cgi
 script/cat.cgi
 script/state.cgi
+script/postResults.cgi
 t/0-use.t
 t/1-regen.t
 t/2-cgi.t

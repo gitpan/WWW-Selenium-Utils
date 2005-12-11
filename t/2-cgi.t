@@ -6,6 +6,7 @@ use lib "lib";
 use WWW::Selenium::Utils::CGI qw(run cat state);
 use CGI;
 use Cwd;
+use t::MockCGI;
 
 # cat tests
 my $page = cat(MockCGI->new());
@@ -67,17 +68,5 @@ like $page, qr#State cleared#;
 $statefile = '/tmp/selenium-utils-tests';
 ok !-e $statefile, 'statefile is gone';
 
-
-package MockCGI;
-
-sub new {
-    my $class = shift;
-    my %args = @_;
-    my $self = \%args;
-    bless $self, $class;
-    return $self;
-}
-
-sub param { $_[0]->{$_[1]} }
 
 1;

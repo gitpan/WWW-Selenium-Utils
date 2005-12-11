@@ -1,5 +1,5 @@
-WWW-Selenium-Utils version 0.01
-===============================
+WWW-Selenium-Utils
+==================
 
 This package contains useful helper libraries and scripts for 
 testing websites using Selenium.
@@ -34,6 +34,9 @@ This package contains two modules:
     You will need to wrap these functions in CGI or mod_perl handlers.
     Example scripts can be found in the scripts/ directory.
     
+And some example scripts:
+
+  script/postResults.cgi - writes a Selenium result post to disk
 
 INSTALLATION
 

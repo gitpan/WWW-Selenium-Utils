@@ -78,7 +78,9 @@ sub wiki2html {
     print "Generating html for ($title): $html\n" if $verbose;
 
     open(my $out, ">$html") or die "Can't open $html: $!";
-    print $out html_header( title => $title );
+    my $now = localtime;
+    print $out html_header( title => $title ),
+               "<b>Auto-generated at $now</b><br />\n";
     while(<$in>) {
         next if /^#/ or /^\s*$/;
         chomp;
@@ -97,7 +99,8 @@ sub wiki2html {
     }
     close $in or die "Can't close $wiki: $!";
 
-    print $out html_footer();
+    print $out "<hr />Auto-generated from $wiki at $now\n",
+               html_footer();
     close $out or die "Can't write $html: $!";
     return $1 if $html =~ m#.+/tests/(.+)$#;
 }

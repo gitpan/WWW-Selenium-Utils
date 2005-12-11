@@ -1,13 +1,19 @@
 Revision history for Perl extension WWW-Selenium-Utils.
 
-0.03 - Mon Nov 28 23:09:42 PST 2005
+0.05 - Sat Dec 10 15:42:26 PST 2005
+    - added Auto-generated comment to generated html files
+      (thanks Mark Stosberg!)
+    - added PostResults.pm to write selenium results to file
+    - added script/postResults.cgi   
+
+0.04 - Mon Nov 28 23:09:42 PST 2005
     - Added state functionality
     - changed --selenium to default parameter
     - selenium-regen needs the tests dir, not the selenium dir
       - Thanks Mark Stosberg!
     - use test title in TestSuite.html (better titles)
 
-0.02  Later
+0.03  Later
     - moved selenium-regen to bin from script
 
 0.01  Fri Nov  4 10:05:50 2005

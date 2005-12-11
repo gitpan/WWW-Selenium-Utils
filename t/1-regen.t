@@ -46,6 +46,8 @@ like $suite, qr#foo\.html#, "suite contains link to foo.html";
 like $suite, qr#>some title</a>#, "link is from wiki title";
 like $suite, qr#bar\.html#, "suite contains link to bar.html";
 my $foo = cat("$testdir/foo.html");
+like $foo, qr#Auto-generated from $testdir/foo\.wiki at #;
+like $foo, qr#Auto-generated at #;
 like $foo, qr#open#;
 like $foo, qr#verifyText#;
 like $foo, qr#verifyLocation#;
