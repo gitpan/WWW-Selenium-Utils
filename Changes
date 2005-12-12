@@ -1,5 +1,12 @@
 Revision history for Perl extension WWW-Selenium-Utils.
 
+0.06 - Mon Dec 12 00:22:25 PST 2005
+    - added --base option to selenium-regen to prefix a common
+      path to all open and assert/verifyLocation commands
+      - Thanks Mark Stosberg!
+    - reword the auto-generated comment
+    - bugfixes for directory paths
+
 0.05 - Sat Dec 10 15:42:26 PST 2005
     - added Auto-generated comment to generated html files
       (thanks Mark Stosberg!)

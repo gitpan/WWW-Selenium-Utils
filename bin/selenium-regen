@@ -7,8 +7,10 @@ use Getopt::Long;
 
 my $testdir;
 my $quiet = 0;
+my $base;
 GetOptions( 
             'quiet'      => \$quiet,
+            'base=s'     => \$base,
           ) or usage();
 $testdir = shift;
 usage("No tests directory provided!") unless $testdir;
@@ -16,6 +18,7 @@ usage("$testdir isn't a directory!") unless -d $testdir;
 
 generate_suite( test_dir => $testdir,
                 verbose => !$quiet,
+                base_href => $base,
               );
 
 
@@ -23,7 +26,11 @@ sub usage {
     my $msg = shift || '';
     die <<EOT;
 $msg
-USAGE: $0 [--quiet] /path/to/selenium/tests
+USAGE: $0 [options] /path/to/selenium/tests
+
+Options:
+ --quiet        Won't print informative output
+ --base=<base>  Sets the base href for generated html files
 
 This script will convert any .wiki files in the tests/ directory
 to regular .html format selenium test files.  It will then put 
