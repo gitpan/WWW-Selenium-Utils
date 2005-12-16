@@ -8,7 +8,7 @@ use File::Find;
 
 require Exporter;
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(generate_suite);
+our @EXPORT_OK = qw(generate_suite cat);
 
 our $VERSION = '0.06';
 
@@ -34,18 +34,32 @@ sub generate_suite {
 
     for (sort {$a cmp $b} @$files) {
         next if /(?:\.tmp|TestSuite\.html)$/;
-        # skip html files that we have or will generate
-        next if /(.+)\.html$/ and -e "$testdir/$1.wiki";
 
         my $f = $_;
+        my $fp = "$testdir/$f";
+        if ($f =~ /(.+)\.html$/) {
+            my $basename = $1;
+            # skip html files that we have or will generate
+            next if -e "$testdir/$basename.wiki";
+            # find orphaned html files
+            my $html = cat($fp);
+            if ($html =~ m#Auto-generated from $testdir/$basename\.wiki# and 
+                        !-e "$testdir/$basename.wiki") {
+                print "Deleting orphaned file $fp\n" if $verbose;
+                unlink $fp or die "Can't unlink $fp: $!";
+                next;
+            }
+        }
+
         print "Adding row for $f\n" if $verbose;
         if (/\.wiki$/) {
-            $f = wiki2html("$testdir/$f", 
+            $f = wiki2html($fp, 
                            verbose => $verbose,
                            base_href => $opts{base_href});
             $f =~ s/^$testdir\///;
+            $fp = "$testdir/$f";
         }
-        my $title = find_title("$testdir/$f");
+        my $title = find_title($fp);
         print $fh qq(\t<tr><td><a href="./$f">$title</a></td></tr>\n);
     }
     #print the footer
@@ -110,7 +124,7 @@ sub wiki2html {
                        . "\n\t<td>$opt2</td></tr>\n";
         }
         else {
-            warn "Invalid line: $_\n";
+            warn "Invalid line ($.) in file $wiki: $_\n";
         }
     }
     close $in or die "Can't close $wiki: $!";
@@ -169,6 +183,21 @@ sub html_footer {
   </body>
 </html>
 EOT
+}
+
+sub cat {
+    my $file = shift;
+    my $contents;
+    eval {
+        open(my $fh, $file) or die "Can't open $file: $!";
+        { 
+            local $/;
+            $contents = <$fh>;
+        }
+        close $fh or die "Can't close $file: $!";
+    };
+    warn if $@;
+    return $contents;
 }
 
 

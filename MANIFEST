@@ -10,6 +10,8 @@ script/run.cgi
 script/cat.cgi
 script/state.cgi
 script/postResults.cgi
+t/Regen.pm
 t/0-use.t
 t/1-regen.t
 t/2-cgi.t
+t/warn.t
