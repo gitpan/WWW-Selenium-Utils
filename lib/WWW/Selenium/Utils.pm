@@ -5,12 +5,14 @@ use strict;
 use warnings;
 use Carp;
 use File::Find;
+use Config;
+use WWW::Selenium::Utils::Actions qw(%selenium_actions);
 
 require Exporter;
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(generate_suite cat);
+our @EXPORT_OK = qw(generate_suite cat parse_wikifile);
 
-our $VERSION = '0.06';
+our $VERSION = '0.08';
 
 sub html_header;
 sub html_footer;
@@ -18,20 +20,33 @@ sub html_footer;
 sub generate_suite {
     my %opts = @_;
 
-    my $testdir = $opts{test_dir} or croak("test_dir is mandatory!");
-    croak("$testdir is not a directory!") unless -d $testdir;
+    my %config = parse_config();
+    $opts{$_} ||= $config{$_} for keys %config;
+
+    croak "Must provide a directory of tests!\n" unless $opts{test_dir};
+
+    _generate_suite( %opts );
+
+    # create a test Suite index
+    create_suite_index($opts{test_dir}, $opts{index}) if $opts{index};
+}
+
+sub _generate_suite {
+    my %opts = @_;
+    my $testdir = $opts{test_dir};
     $testdir =~ s#/$##;
-    my $files = $opts{files} || test_files($testdir);
-    my $verbose = $opts{verbose};
+    croak "$testdir is not a directory!\n" unless -d $testdir;
+    my $files = $opts{files} || test_files($testdir, $opts{perdir}, \%opts);
 
     my $suite = "$testdir/TestSuite.html";
     my $date = localtime;
 
-    open(my $fh, ">$suite.tmp") or die "Can't open $suite.tmp: $!";
+    open(my $fh, ">$suite.tmp") or croak "Can't open $suite.tmp: $!";
     print $fh html_header(title => "Test Suite",
                           text  => "Generated at $date",
                          );
 
+    my $tests_added = 0;
     for (sort {$a cmp $b} @$files) {
         next if /(?:\.tmp|TestSuite\.html)$/;
 
@@ -45,44 +60,63 @@ sub generate_suite {
             my $html = cat($fp);
             if ($html =~ m#Auto-generated from $testdir/$basename\.wiki# and 
                         !-e "$testdir/$basename.wiki") {
-                print "Deleting orphaned file $fp\n" if $verbose;
-                unlink $fp or die "Can't unlink $fp: $!";
+                print "Deleting orphaned file $fp\n" if $opts{verbose};
+                unlink $fp or croak "Can't unlink $fp: $!";
                 next;
             }
         }
 
-        print "Adding row for $f\n" if $verbose;
+        print "Adding row for $f\n" if $opts{verbose};
         if (/\.wiki$/) {
             $f = wiki2html($fp, 
-                           verbose => $verbose,
+                           verbose => $opts{verbose},
                            base_href => $opts{base_href});
             $f =~ s/^$testdir\///;
             $fp = "$testdir/$f";
         }
         my $title = find_title($fp);
         print $fh qq(\t<tr><td><a href="./$f">$title</a></td></tr>\n);
+        $tests_added++;
     }
     #print the footer
     print $fh html_footer();
+    close $fh or croak "Can't close $suite.tmp: $!";
 
-    # save and rename into place
-    close $fh or die "Can't close $suite.tmp: $!";
-    rename "$suite.tmp", $suite or die "can't rename $suite.tmp $suite: $!";
-    print "Created new $suite\n" if $verbose;
+    if ($tests_added) {
+        # rename into place
+        rename "$suite.tmp", $suite or croak "can't rename $suite.tmp $suite: $!";
+        print "Created new $suite\n" if $opts{verbose};
+    }
+    else {
+        unlink "$suite.tmp";
+    }
 }
 
 sub test_files {
-    my $testdir = shift;
+    my ($testdir, $perdir, $opts) = @_;
 
     my @tests;
-    find(sub {
-            my $n = $File::Find::name;
-            return if -d $n;
-            return unless m#(?:wiki|html)$#;
-            $n =~ s#^$testdir/?##;
-            $n =~ s#^.+/tests/##;
-            push @tests, $n;
-        }, $testdir);
+    if ($perdir) {
+        my @files = glob("$testdir/*");
+        foreach my $f (@files) {
+            if (-d $f) {
+                $opts->{test_dir} = $f;
+                generate_suite( %$opts );
+                next;
+            }
+            push @tests, $f;
+        }
+    }
+    else {
+        find(sub { push @tests, $File::Find::name }, $testdir);
+    }
+
+    @tests = grep { !-d $_ and m#(?:wiki|html)$# } @tests;
+    for (@tests) {
+        s#^$testdir/?##;
+        s#^.+/tests/##;
+    }
+
     return \@tests;
 }
 
@@ -94,61 +128,142 @@ sub wiki2html {
 
     (my $html = $wiki) =~ s#\.wiki$#.html#;
 
-    open(my $in, $wiki) or die "Can't open $wiki: $!";
-    my $title = <$in>;
-    chomp $title;
-    $title =~ s#^\s*##;
-    $title =~ s#^\|(.+)\|$#$1#;
-    print "Generating html for ($title): $html\n" if $verbose;
+    my $results = parse_wikifile(filename => $wiki, 
+                                 base_href => $base_href);
+    if ($results->{errors}) {
+        croak "Error parsing file $wiki:\n  " 
+              . join("\n  ", @{$results->{errors}})
+              . "\n";
+    }
 
-    open(my $out, ">$html") or die "Can't open $html: $!";
+    print "Generating html for ($results->{title}): $html\n" if $verbose;
+    open(my $out, ">$html") or croak "Can't open $html: $!";
+    print $out html_header( title => $results->{title},
+                    text => "<b>Auto-generated from $wiki</b><br />");
+    foreach my $r (@{$results->{rows}}) {
+        print $out "\n\t<tr>",
+                   join('', map "<td>$_</td>", @$r),
+                   "</tr>\n";
+    }
+
     my $now = localtime;
-    print $out html_header( title => $title,
-                            text => "<b>Auto-generated from $wiki</b><br />");
+    print $out html_footer("<hr />Auto-generated from $wiki at $now\n");
+    close $out or croak "Can't write $html: $!";
+    return $html;
+}
+
+sub parse_wikifile {
+    my %opts = @_;
+    my $filename = $opts{filename};
+    my $base_href = $opts{base_href};
+    my $include   = $opts{include};
+    (my $base_dir = $filename) =~ s#(.+)/.+$#$1#;
+
+    my $title;
+    my @rows;
+    my @errors;
+
+    # $. and $_ are global, so we don't need to pass them in
+    # to this closure
+    my $parse_error = sub {
+        push @errors, "line $.: $_[0] ($_)";
+    };
+
+    open(my $in, $filename) or croak "Can't open $filename: $!";
     while(<$in>) {
         s/^\s*//;
         next if /^#/ or /^\s*$/;
         chomp;
-        if (/^\s*\|\s*(.+?)\s*\|\s*$/) {
-            my ($cmd, $opt1, $opt2) = split /\s*\|\s*/, $1, 3;
-            die "No command found! ($_)" unless $cmd;
-            $opt1 ||= '&nbsp;';
-            $opt2 ||= '&nbsp;';
+
+        # included files won't have a title
+        if (not defined $title and not $include) {
+            $title = $_;
+            $title =~ s#^\s*##;
+            $title =~ s#^\|(.+)\|$#$1#;
+            next;
+        }
+        elsif (/^\s*                   # some possible leading space
+                \|\s*([^\|]+?)\s*\|    # cmd
+                (?:\s*([^\|]+?)\s*\|)? # opt1 (optional)
+                (?:\s*([^\|]+?)\s*\|)? # opt2 (optional)
+                \s*$/x) {
+            my ($cmd, $opt1, $opt2) = ($1,$2,$3);
+            $parse_error->("No command found") and next unless $cmd;
+
+            my $numargs = (grep { defined $_ } ($opt1, $opt2));
+            my $expected_args = $selenium_actions{lc($cmd)};
+            if (defined $expected_args and $expected_args != $numargs) {
+                $parse_error->("Incorrect number of arguments for $cmd");
+                next;
+            }
+
+            $opt1 = '&nbsp;' unless defined $opt1;
+            $opt2 = '&nbsp;' unless defined $opt2;
             if ($base_href and ($cmd eq "open" or 
                                 $cmd =~ /(?:assert|verify)Location/)) {
                 $opt1 =~ s#^/##;
                 $opt1 = "$base_href/$opt1";
             }
-            print $out "\n\t<tr><td>$cmd</td>"
-                       . "\n\t<td>$opt1</td>"
-                       . "\n\t<td>$opt2</td></tr>\n";
+            push @rows, [ $cmd, $opt1, $opt2 ];
         }
-        else {
-            warn "Invalid line ($.) in file $wiki: $_\n";
+        elsif (/^\s*include\s+(.+)\s*$/) {
+            my $incl = $1;
+            $incl = "$base_dir/$1" unless -e $1;
+            unless (-e $incl) {
+                $parse_error->("Can't include $incl - file doesn't exist!");
+                next;
+            }
+            my $r = parse_wikifile( %opts, filename => $incl, 
+                                          include => 1);
+            push @rows,   @{$r->{rows}}   if $r->{rows};
+            push @errors, @{$r->{errors}} if $r->{errors};
+        }
+        else { 
+            $parse_error->("Invalid line");
         }
     }
-    close $in or die "Can't close $wiki: $!";
-
-    print $out html_footer("<hr />Auto-generated from $wiki at $now\n");
-    close $out or die "Can't write $html: $!";
-    return $html;
+    close $in or croak "Can't close $filename: $!";
+    return { $title ? (title => $title) : (),
+             @errors ? (errors => \@errors) : (),
+             rows  => \@rows,
+           };
 }
 
 sub find_title {
     my $filename = shift;
 
-    open(my $fh, $filename) or die "Can't open $filename: $!";
+    open(my $fh, $filename) or croak "Can't open $filename: $!";
     my $contents;
     { 
         local $/;
         $contents = <$fh>;
     }
-    close $fh or die "Can't close $filename: $!";
+    close $fh or croak "Can't close $filename: $!";
 
     return $filename unless $contents;
     return $1 if $contents =~ m#<title>\s*(.+)\s*</title>#;
     return $1 if $filename =~ m#^.+/(.+)\.html$#;
     return $filename;
+}
+
+sub create_suite_index {
+    my ($testdir, $index) = @_;
+    my @suites;
+    find( sub { push @suites, $File::Find::name if /TestSuite\.html$/ }, $testdir);
+    return unless @suites;
+    
+    (my $index_dir = $index) =~ s#^(.+)/.+$#$1#;
+    open(my $fh, ">$index.tmp") or croak "Can't open $index.tmp: $!";
+    print $fh html_header(title => "Selenium TestSuites");
+    foreach my $s (@suites) {
+        my $name = "Main";
+        $name = $1 if $s =~ m#\Q$testdir\E/(.+)/TestSuite\.html$#;
+        (my $link = $s) =~ s#\Q$index_dir\E/##;
+        print $fh qq(\t<tr><td><a href="TestRunner.html?test=./$link">$name TestSuite</a></td></tr>\n);
+    }
+    print $fh html_footer;
+    close $fh or croak "Can't write $index.tmp: $!";
+    rename "$index.tmp", $index or croak "Can't rename $index.tmp to $index: $!";
 }
 
 sub html_header {
@@ -189,17 +304,53 @@ sub cat {
     my $file = shift;
     my $contents;
     eval {
-        open(my $fh, $file) or die "Can't open $file: $!";
+        open(my $fh, $file) or croak "Can't open $file: $!";
         { 
             local $/;
             $contents = <$fh>;
         }
-        close $fh or die "Can't close $file: $!";
+        close $fh or croak "Can't close $file: $!";
     };
     warn if $@;
     return $contents;
 }
 
+sub parse_config {
+    my $file = ($ENV{SELUTILS_ROOT} || $Config{prefix}) . "/etc/selutils.conf";
+    return () unless -e $file;
+    # try evaling the file (current file format)
+    open(my $fh, $file) or croak "Can't open $file: $!";
+    my $contents;
+    { 
+        local $/ = undef;
+        $contents = <$fh>;
+    }
+    close $fh or die "Can't close $file: $!";
+
+    our $perdir;
+    our $test_dir;
+    our $index;
+    { 
+        local $SIG{__WARN__} = sub {}; # hide eval errors
+        eval $contents;
+    }
+    my $eval_err = $@;
+
+    # failed to eval file - try reading as an old style config
+    if ($eval_err) {
+        while($contents =~ /^\s*(\w+)\s*=\s*['"]?([^'"]+)['"]?\s*$/mg) {
+            $perdir = $2 if $1 eq 'perdir';
+            $index = $2 if $1 eq 'index';
+            $test_dir = $2 if $1 eq 'test_dir';
+        }
+        warn "$file eval error: $eval_err\n" unless $test_dir;
+    }
+    my %config = ( perdir => $perdir,
+                   test_dir => $test_dir,
+                   index => $index,
+                 );
+    return %config;
+}
 
 1;
 __END__
@@ -241,6 +392,14 @@ is like this:
   # empty lines are ignored
   # comments are ignored too
 
+  # you can include other wiki files too!  These files should not 
+  # have a title.  I'll look for the file in the same directory
+  # as the current .wiki file
+  include "foo.incl"
+
+  # if you don't want included files to also be converted to html,
+  # then don't name them .wiki
+
 Parameters:
 
 =over 4
@@ -258,7 +417,60 @@ If true, informative messages will be printed.
 Will prepend the given location to all locations for the
 open and assert/verifyLocation commands.
 
+=item perdir
+
+Will create a separate TestSuite.html for each directory
+under test_dir.
+
+=item index
+
+Will create a html index of all available TestSuite.html files
+found inside test_dir.
+
 =back
+
+generate_suite() will parse a config file if present at either 
+$ENV{SELUTILS_ROOT}/etc/selutils.conf or $Config{prefix}/etc/selutils.conf.
+
+Supported options in selutils.conf and are the same as the generate_suite()
+arguments:
+
+=over 4
+
+=item test_dir
+
+=item perdir 
+
+=back
+
+=head1 INTEGRATION WITH SELENIUM RECORDER
+
+Selenium Recorder is Firefox extension that records your actions as you
+browse. The result is a test file that can be played back in Selenium. 
+
+It's quite easy to make Selenium Recorder generate a syntax that
+is directly compatible with the wiki syntax suggested here. 
+
+In Selenium Recorder 0.6, you can update templates by opening
+the "Preferences" from the Extension panel of Firefox, and then
+clicking "Save". Adjust the input fields as follows:
+
+Template for new test html file
+
+ ${name}
+ ${commands}
+
+Template for command entries in the test html file
+
+ | ${command.command} | ${command.target} | ${command.value} |
+
+Template for comment entries in the test html file
+
+ # ${comment.comment}
+
+Further information about Selenium Recorder is available at:
+
+  http://www.openqa.org/selenium-ide/
 
 =head1 DIAGNOSTICS
 

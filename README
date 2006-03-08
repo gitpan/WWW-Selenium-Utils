@@ -16,10 +16,13 @@ Sample .wiki file:
   | open | /foo |
   | verifyLocation | /foo | 
   | verifyTextPresent | id=name | Luke |
-  # comments are allowed
+  # Comments are allowed
 
-  # so are blank lines
+  # Blank lines are allowed too
   | clickAndWait | id=main_btn |
+
+  # And you can include other files!  Exciting!
+  include "other_file.tmpl"
 
 This package contains two modules:
 

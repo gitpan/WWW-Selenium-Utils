@@ -33,8 +33,8 @@ like $page, qr#Error!#, 'run with no args';
 like $page, qr#cmd is a mandatory#;
 
 $page = run(MockCGI->new( cmd => "perl -e 'print q(Monkey)'" ));
-like $page, qr#Output of "perl#, 'running a command';
-like $page, qr#<pre>Monkey#;
+like $page, qr#<div id='cmd'><h1>Output of "perl#, 'running a command';
+like $page, qr#<div id='output'><pre>Monkey#;
 
 
 

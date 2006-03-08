@@ -21,7 +21,9 @@ sub run {
     my $results = qx($cmd) || $!;
     $results =~ s/</&lt;/g;
     return header . start_html("Output of \"$cmd\"") 
-           . h1("Output of \"$cmd\":") . pre($results) . end_html;
+           . "<div id='cmd'>" . h1("Output of \"$cmd\":") . "</div>"
+           . "<div id='output'>" . pre($results) . "</div>"
+           . end_html;
 }
 
 
